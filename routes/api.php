@@ -14,5 +14,6 @@ Route::get('/recommendations', [RecommendationController::class, 'index']);
 
 Route::get('/exchange-rate/latest', [ExchangeRateController::class, 'latest']);
 Route::get('/exchange-rate/check', [ExchangeRateController::class, 'check']);
+Route::get('/exchange-rate/history', [ExchangeRateController::class, 'history']);
 
 Route::get('/commodities', [CommodityController::class, 'index']);

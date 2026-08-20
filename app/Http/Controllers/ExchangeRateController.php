@@ -41,4 +41,14 @@ class ExchangeRateController extends Controller
             'data' => $log,
         ]);
     }
+
+    public function history()
+    {
+        $logs = ExchangeRateLog::orderByDesc('checked_at')->limit(30)->get()->reverse()->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $logs,
+        ]);
+    }
 }

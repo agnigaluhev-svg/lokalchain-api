@@ -51,9 +51,12 @@ class RecommendationService
                 'producer_id' => $producer->id,
                 'producer_name' => $producer->name,
                 'address' => $producer->address,
+                'latitude' => (float) $producer->latitude,
+                'longitude' => (float) $producer->longitude,
                 'price_per_kg' => (float) $item->price_per_kg,
+                'capacity_per_day' => (float) $item->capacity_per_day,
                 'distance_km' => round($distanceKm, 2),
-                'days_since_update' => $daysSinceUpdate,
+                'days_since_update' => $daysSinceUpdate !== null ? floor($daysSinceUpdate) : null,
                 'is_stale' => $isStale,
                 'total_cost' => round($totalCost, 2),
             ];
