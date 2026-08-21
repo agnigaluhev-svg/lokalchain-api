@@ -12,6 +12,8 @@ class Producer extends Model
 
     protected $fillable = [
         'name',
+        'producer_type',
+        'is_validated',
         'latitude',
         'longitude',
         'address',
@@ -21,6 +23,7 @@ class Producer extends Model
     protected $casts = [
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
+        'is_validated' => 'boolean',
         'last_updated_at' => 'datetime',
     ];
 

@@ -13,6 +13,7 @@ class ProducerCommodity extends Model
     protected $fillable = [
         'producer_id',
         'commodity_id',
+        'product_label',
         'price_per_kg',
         'capacity_per_day',
     ];

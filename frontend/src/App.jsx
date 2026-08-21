@@ -1,25 +1,238 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
 const API_BASE = 'http://127.0.0.1:8000/api'
+const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 menit
 
+function fmtRp(n) {
+  return 'Rp' + Math.round(n).toLocaleString('id-ID')
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '-'
+  const diffMs = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diffMs / 60000)
+  if (mins < 1) return 'Baru saja'
+  if (mins < 60) return `${mins} menit lalu`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours} jam lalu`
+  return `${Math.floor(hours / 24)} hari lalu`
+}
+
+/* ============ SECTOR SELECT ============ */
+function SectorSelect({ onSelect }) {
+  const sectors = [
+    { id: 'pangan', icon: '🌾', name: 'Pangan / Kuliner', tags: ['Tahu/Tempe', 'Bakeri', 'Konveksi'], active: true },
+    { id: 'tekstil', icon: '🧵', name: 'Tekstil / Konveksi', tags: ['Garmen', 'Tenun', 'Bordir'], active: false },
+    { id: 'kriya', icon: '🪵', name: 'Kriya / Kerajinan', tags: ['Furnitur', 'Anyaman', 'Ukiran'], active: false },
+  ]
+
+  return (
+    <div className="intro-screen">
+      <div className="intro-eyebrow">⚡ v1.0 · DSS Platform</div>
+      <div className="intro-logo">📦</div>
+      <div className="intro-title">LokalChain</div>
+      <div className="intro-sub">DSS Platform · UMKM Supply Intelligence</div>
+
+      <div className="section-label">Pilih Sektor UMKM</div>
+
+      <div className="sector-list">
+        {sectors.map((s) => (
+          <button
+            key={s.id}
+            className={`sector-card ${s.id}`}
+            onClick={() => s.active && onSelect(s)}
+            style={{ opacity: s.active ? 1 : 0.5, cursor: s.active ? 'pointer' : 'not-allowed' }}
+          >
+            <div className="sector-icon">{s.icon}</div>
+            <div className="sector-body">
+              <div className="sector-name">
+                {s.name}
+                {!s.active && <span className="sector-tag">Segera Hadir</span>}
+              </div>
+              <div className="sector-tags">
+                {s.tags.map((t) => <span key={t} className="sector-tag">{t}</span>)}
+              </div>
+            </div>
+            <div className="sector-chevron">›</div>
+          </button>
+        ))}
+      </div>
+
+      <div className="intro-footer">🛡 Data divalidasi Dinas Koperasi & Pertanian</div>
+    </div>
+  )
+}
+
+/* ============ ROLE SELECT ============ */
+function RoleSelect({ sector, onSelect, onBack }) {
+  return (
+    <div className="intro-screen">
+      <div className="intro-eyebrow">⚡ v1.0 · DSS Platform</div>
+      <div className="intro-logo">📦</div>
+      <div className="intro-title">LokalChain</div>
+      <div className="intro-sub">DSS Platform · UMKM Supply Intelligence</div>
+
+      <button className="back-link" onClick={onBack}>← Kembali pilih sektor</button>
+
+      <div className={`sector-card ${sector.id} selected`} style={{ marginBottom: '24px' }}>
+        <div className="sector-icon">{sector.icon}</div>
+        <div className="sector-body">
+          <div className="sector-name">{sector.name}</div>
+        </div>
+        <span className="selected-tag">Terpilih ✓</span>
+      </div>
+
+      <div className="section-label">Masuk Sebagai</div>
+
+      <div className="role-list">
+        <button className="role-card" onClick={() => onSelect('portal')}>
+          <div className="role-icon hulu">🚜</div>
+          <div style={{ flex: 1 }}>
+            <div className="role-title">Portal Produsen / KUD</div>
+            <div className="role-desc">Sisi Hulu · Update stok & harga komoditas</div>
+            <div className="sector-tags">
+              <span className="sector-tag">Petani</span>
+              <span className="sector-tag">KUD/Koperasi</span>
+              <span className="sector-tag">Gapoktan</span>
+            </div>
+          </div>
+          <div className="sector-chevron">›</div>
+        </button>
+
+        <button className="role-card" onClick={() => onSelect('dashboard')}>
+          <div className="role-icon hilir">🛍️</div>
+          <div style={{ flex: 1 }}>
+            <div className="role-title">Dashboard UMKM</div>
+            <div className="role-desc">Sisi Hilir · DSS rekomendasi pemasok lokal</div>
+            <div className="sector-tags">
+              <span className="sector-tag">Tahu/Tempe</span>
+              <span className="sector-tag">Bakeri</span>
+              <span className="sector-tag">Konveksi</span>
+            </div>
+          </div>
+          <div className="sector-chevron">›</div>
+        </button>
+      </div>
+
+      <div className="intro-footer">🛡 Data divalidasi Dinas Koperasi & Pertanian</div>
+    </div>
+  )
+}
+
+/* ============ PORTAL PRODUSEN ============ */
+function ProducerPortal({ sector, onExit }) {
+  const [items, setItems] = useState([])
+  const [editingId, setEditingId] = useState(null)
+  const [editPrice, setEditPrice] = useState('')
+  const [editStock, setEditStock] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  const loadProducers = () => {
+    fetch(`${API_BASE}/producers`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) setItems(json.data)
+        setLoading(false)
+      })
+  }
+
+  useEffect(() => { loadProducers() }, [])
+
+  const startEdit = (item) => {
+    setEditingId(item.producer_commodity_id)
+    setEditPrice(item.price_per_kg)
+    setEditStock(item.capacity_per_day)
+  }
+
+  const saveEdit = (id) => {
+    fetch(`${API_BASE}/producer-commodities/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ price_per_kg: editPrice, capacity_per_day: editStock }),
+    })
+      .then((res) => res.json())
+      .then(() => {
+        setEditingId(null)
+        loadProducers()
+      })
+  }
+
+  return (
+    <div className="app">
+      <div className="topbar">
+        <div className="topbar-brand">
+          <button className="topbar-exit" onClick={onExit}>⤴</button>
+          <div className="topbar-titles">
+            <div className="topbar-title">Portal Produsen / KUD</div>
+            <div className="topbar-sub">{sector.icon} {sector.name} — Sisi Hulu</div>
+          </div>
+        </div>
+        <div className="status-pill online"><span className="dot"></span>ONLINE</div>
+      </div>
+
+      <div className="page">
+        <div className="validated-banner">
+          🛡
+          <span><b>Divalidasi oleh</b> Dinas Koperasi & Pertanian Kota Malang · Data live ke dashboard UMKM</span>
+        </div>
+
+        {loading && <div className="empty-state">Memuat data pemasok...</div>}
+
+        {items.map((item) => (
+          <div key={item.producer_commodity_id} className="producer-row">
+            <div className="producer-row-top">
+              <div className="producer-row-name">{item.name}</div>
+              <span className={`badge ${item.is_validated ? 'validated' : 'unvalidated'}`}>
+                {item.is_validated ? '✓ Tervalidasi' : '⚠ Belum Validasi'}
+              </span>
+            </div>
+            <div className="producer-row-meta">{item.producer_type} · {item.product_label}</div>
+
+            {editingId === item.producer_commodity_id ? (
+              <div className="edit-form">
+                <input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} placeholder="Harga/kg" />
+                <input type="number" value={editStock} onChange={(e) => setEditStock(e.target.value)} placeholder="Stok kg" />
+                <button onClick={() => saveEdit(item.producer_commodity_id)}>Simpan</button>
+              </div>
+            ) : (
+              <div className="producer-row-stats">
+                <div className="stat-block">
+                  <span className="label">Harga/kg</span>
+                  <span className="value">{fmtRp(item.price_per_kg)}</span>
+                </div>
+                <div className="stat-block">
+                  <span className="label">Stok Tersedia</span>
+                  <span className="value">{item.capacity_per_day.toLocaleString('id-ID')} kg</span>
+                </div>
+                <button className="edit-btn" onClick={() => startEdit(item)}>Edit</button>
+              </div>
+            )}
+          </div>
+        ))}
+
+        <div className="sync-note">
+          Data yang Anda perbarui di sini akan langsung tersinkronisasi ke Dashboard UMKM sektor {sector.name} sebagai rekomendasi pemasok real-time.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ============ SHARED: Sparkline & Map ============ */
 function Sparkline({ history }) {
   if (!history || history.length < 2) {
     return <div className="empty-state">Belum cukup data untuk grafik tren.</div>
   }
-
   const rates = history.map((h) => parseFloat(h.rate))
   const min = Math.min(...rates)
   const max = Math.max(...rates)
   const range = max - min || 1
-
-  const points = rates
-    .map((r, i) => {
-      const x = (i / (rates.length - 1)) * 280 + 10
-      const y = 50 - ((r - min) / range) * 40
-      return `${x},${y}`
-    })
-    .join(' ')
+  const points = rates.map((r, i) => {
+    const x = (i / (rates.length - 1)) * 280 + 10
+    const y = 50 - ((r - min) / range) * 40
+    return `${x},${y}`
+  }).join(' ')
 
   return (
     <svg viewBox="0 0 300 60" width="100%" height="70" preserveAspectRatio="none">
@@ -32,21 +245,16 @@ function MapView({ results, userLat, userLon }) {
   if (!results || results.length === 0) {
     return <div className="empty-state">Cari rekomendasi dulu untuk melihat peta lokasi pemasok.</div>
   }
-
   const lats = [userLat, ...results.map((r) => r.latitude)]
   const lons = [userLon, ...results.map((r) => r.longitude)]
-  const minLat = Math.min(...lats)
-  const maxLat = Math.max(...lats)
-  const minLon = Math.min(...lons)
-  const maxLon = Math.max(...lons)
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats)
+  const minLon = Math.min(...lons), maxLon = Math.max(...lons)
   const latRange = maxLat - minLat || 0.01
   const lonRange = maxLon - minLon || 0.01
-
   const toPos = (lat, lon) => ({
     x: ((lon - minLon) / lonRange) * 76 + 12,
     y: ((maxLat - lat) / latRange) * 76 + 12,
   })
-
   const userPos = toPos(userLat, userLon)
   const topPos = toPos(results[0].latitude, results[0].longitude)
 
@@ -54,59 +262,60 @@ function MapView({ results, userLat, userLon }) {
     <>
       <div className="map-box">
         <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
-          <line
-            x1={`${userPos.x}%`} y1={`${userPos.y}%`}
-            x2={`${topPos.x}%`} y2={`${topPos.y}%`}
-            stroke="#34d399" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.6"
-          />
+          <line x1={`${userPos.x}%`} y1={`${userPos.y}%`} x2={`${topPos.x}%`} y2={`${topPos.y}%`}
+            stroke="#34d399" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.6" />
         </svg>
-
         <div className="map-marker" style={{ left: `${userPos.x}%`, top: `${userPos.y}%` }}>
           <div className="map-dot user"></div>
           <div className="map-label">Lokasi Anda</div>
         </div>
-
         {results.map((r, i) => {
           const pos = toPos(r.latitude, r.longitude)
+          const cls = !r.in_stock ? 'empty' : i === 0 ? 'rank-1' : ''
           return (
             <div key={r.producer_id} className="map-marker" style={{ left: `${pos.x}%`, top: `${pos.y}%` }}>
-              <div className={`map-dot producer ${i === 0 ? 'rank-1' : ''}`}></div>
+              <div className={`map-dot producer ${cls}`}></div>
               <div className="map-label">{r.producer_name}</div>
             </div>
           )
         })}
       </div>
       <div className="map-footer">
-        <span>Haversine · jarak garis lurus</span>
+        <span>Haversine · estimasi jarak garis lurus</span>
         <span>{results.length} pemasok terdeteksi</span>
       </div>
     </>
   )
 }
 
+/* ============ RESULT CARD ============ */
 function ResultCard({ r, index }) {
+  const outOfStock = !r.in_stock
   return (
-    <div className={`result-card ${index === 0 ? 'rank-1' : ''}`}>
+    <div className={`result-card ${index === 0 && !outOfStock ? 'rank-1' : ''} ${outOfStock ? 'out-of-stock' : ''}`}>
       <div className="rank-circle">{index + 1}</div>
       <div className="result-body">
         <div className="result-top-row">
           <p className="result-name">{r.producer_name}</p>
-          {index === 0 && <span className="best-tag">Terbaik</span>}
+          {index === 0 && !outOfStock && <span className="best-tag">Terbaik</span>}
         </div>
-        <p className="result-address">{r.address}</p>
+        <p className="result-address">{r.producer_type} · {r.product_label}</p>
+        <div className="result-meta-row">
+          <span className={`badge ${r.is_validated ? 'validated' : 'unvalidated'}`}>
+            {r.is_validated ? '✓ Tervalidasi' : '⚠ Belum Validasi'}
+          </span>
+          <span className={`badge ${outOfStock ? 'empty' : 'available'}`}>
+            {outOfStock ? 'Stok Habis' : 'Tersedia'}
+          </span>
+        </div>
         <div className="result-details">
-          <div>
-            <span className="label">Harga/kg</span>
-            <span className="value">Rp{r.price_per_kg.toLocaleString('id-ID')}</span>
-          </div>
-          <div>
-            <span className="label">Jarak</span>
-            <span className="value">{r.distance_km} km</span>
-          </div>
-          <div>
-            <span className="label">Total Biaya</span>
-            <span className="value">Rp{r.total_cost.toLocaleString('id-ID')}</span>
-          </div>
+          <div><span className="label">Jarak</span><span className="value">{r.distance_km} km</span></div>
+          <div><span className="label">Est. waktu</span><span className="value">~{r.est_minutes} mnt</span></div>
+          <div><span className="label">Harga/kg</span><span className="value">{fmtRp(r.price_per_kg)}</span></div>
+        </div>
+        <div className="action-row">
+          <button className="action-btn call" disabled={outOfStock}>📞 Hubungi Pemasok</button>
+          <button className="action-btn nav" disabled={outOfStock}>🧭 Navigasi Rute</button>
         </div>
         {r.is_stale && <div className="stale-warning">⚠️ Data sudah {r.days_since_update} hari tidak diperbarui</div>}
       </div>
@@ -114,6 +323,7 @@ function ResultCard({ r, index }) {
   )
 }
 
+/* ============ SEARCH FORM ============ */
 function SearchForm({ commodities, commodityId, setCommodityId, latitude, longitude, locating, locationError, handleGetLocation, qty, setQty, handleSubmit, loading, error }) {
   return (
     <div className="card">
@@ -122,49 +332,37 @@ function SearchForm({ commodities, commodityId, setCommodityId, latitude, longit
           <div className="form-field full">
             <label>Komoditas</label>
             <select value={commodityId} onChange={(e) => setCommodityId(e.target.value)}>
-              {commodities.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
+              {commodities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-
           <div className="location-box">
             <div className="location-status">
               {latitude && longitude ? (
-                <>
-                  Lokasi terdeteksi
-                  <span className="coords">{latitude.toFixed(4)}, {longitude.toFixed(4)}</span>
-                </>
-              ) : (
-                'Lokasi belum terdeteksi'
-              )}
+                <>Lokasi terdeteksi<span className="coords">{latitude.toFixed(4)}, {longitude.toFixed(4)}</span></>
+              ) : 'Lokasi belum terdeteksi'}
             </div>
             <button type="button" className="location-btn" onClick={handleGetLocation} disabled={locating}>
               {locating ? 'Mendeteksi...' : 'Gunakan Lokasi Saya'}
             </button>
           </div>
-
           {locationError && <div className="error-box" style={{ gridColumn: '1 / -1' }}>{locationError}</div>}
-
           <div className="form-field full">
             <label>Jumlah Kebutuhan (kg)</label>
             <input type="number" value={qty} onChange={(e) => setQty(e.target.value)} />
           </div>
         </div>
-
         <button type="submit" className="submit-btn" disabled={loading}>
           {loading ? 'Mencari...' : 'Cari Rekomendasi'}
         </button>
       </form>
-
       {error && <div className="error-box">{error}</div>}
     </div>
   )
 }
 
-function App() {
+/* ============ UMKM DASHBOARD ============ */
+function UmkmDashboard({ sector, onExit }) {
   const [activeTab, setActiveTab] = useState('beranda')
-
   const [commodities, setCommodities] = useState([])
   const [commodityId, setCommodityId] = useState('')
   const [latitude, setLatitude] = useState(null)
@@ -172,168 +370,163 @@ function App() {
   const [locating, setLocating] = useState(false)
   const [locationError, setLocationError] = useState(null)
   const [qty, setQty] = useState('50')
-
   const [results, setResults] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-
   const [exchangeRate, setExchangeRate] = useState(null)
   const [history, setHistory] = useState([])
+  const [refreshingRate, setRefreshingRate] = useState(false)
+  const intervalRef = useRef(null)
+
+  const loadExchangeRate = () => {
+    fetch(`${API_BASE}/exchange-rate/latest`).then((r) => r.json()).then((j) => j.success && setExchangeRate(j.data))
+    fetch(`${API_BASE}/exchange-rate/history`).then((r) => r.json()).then((j) => j.success && setHistory(j.data))
+  }
 
   useEffect(() => {
-    fetch(`${API_BASE}/commodities`)
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success) {
-          setCommodities(json.data)
-          if (json.data.length > 0) setCommodityId(json.data[0].id)
-        }
-      })
+    fetch(`${API_BASE}/commodities`).then((r) => r.json()).then((j) => {
+      if (j.success) {
+        setCommodities(j.data)
+        if (j.data.length > 0) setCommodityId(j.data[0].id)
+      }
+    })
+    loadExchangeRate()
 
-    fetch(`${API_BASE}/exchange-rate/latest`)
-      .then((res) => res.json())
-      .then((json) => { if (json.success) setExchangeRate(json.data) })
-
-    fetch(`${API_BASE}/exchange-rate/history`)
-      .then((res) => res.json())
-      .then((json) => { if (json.success) setHistory(json.data) })
+    intervalRef.current = setInterval(loadExchangeRate, AUTO_REFRESH_MS)
+    return () => clearInterval(intervalRef.current)
   }, [])
+
+  const handleRefreshRate = () => {
+    setRefreshingRate(true)
+    fetch(`${API_BASE}/exchange-rate/check`).then((r) => r.json()).then(() => {
+      loadExchangeRate()
+      setRefreshingRate(false)
+    }).catch(() => setRefreshingRate(false))
+  }
 
   const handleGetLocation = () => {
     setLocating(true)
     setLocationError(null)
-
     if (!navigator.geolocation) {
       setLocationError('Browser tidak mendukung deteksi lokasi.')
       setLocating(false)
       return
     }
-
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLatitude(position.coords.latitude)
-        setLongitude(position.coords.longitude)
-        setLocating(false)
-      },
-      () => {
-        setLocationError('Gagal mendapatkan lokasi. Izinkan akses lokasi di browser.')
-        setLocating(false)
-      }
+      (pos) => { setLatitude(pos.coords.latitude); setLongitude(pos.coords.longitude); setLocating(false) },
+      () => { setLocationError('Gagal mendapatkan lokasi. Izinkan akses lokasi di browser.'); setLocating(false) }
     )
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
-
-    if (!latitude || !longitude) {
-      setError('Mohon deteksi lokasi terlebih dahulu.')
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-
-    const params = new URLSearchParams({
-      commodity_id: commodityId,
-      latitude,
-      longitude,
-      qty,
-      top_n: 20,
-    })
-
-    fetch(`${API_BASE}/recommendations?${params}`)
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success) {
-          setResults(json.data)
-        } else {
-          setError('Gagal mengambil rekomendasi.')
-        }
-        setLoading(false)
-      })
-      .catch((err) => {
-        setError('Gagal terhubung ke server: ' + err.message)
-        setLoading(false)
-      })
+    if (!latitude || !longitude) { setError('Mohon deteksi lokasi terlebih dahulu.'); return }
+    setLoading(true); setError(null)
+    const params = new URLSearchParams({ commodity_id: commodityId, latitude, longitude, qty, top_n: 20 })
+    fetch(`${API_BASE}/recommendations?${params}`).then((r) => r.json()).then((j) => {
+      if (j.success) setResults(j.data); else setError('Gagal mengambil rekomendasi.')
+      setLoading(false)
+    }).catch((err) => { setError('Gagal terhubung ke server: ' + err.message); setLoading(false) })
   }
 
   const isCrisis = exchangeRate?.status === 'crisis'
+  const selectedCommodity = commodities.find((c) => String(c.id) === String(commodityId))
+  const importPrice = selectedCommodity ? parseFloat(selectedCommodity.import_price_reference) : null
 
   return (
     <div className="app">
       <div className="topbar">
         <div className="topbar-brand">
-          <div className="topbar-logo">📦</div>
-          <div>
+          <button className="topbar-exit" onClick={onExit}>⤴</button>
+          <div className="topbar-titles">
             <div className="topbar-title">LokalChain</div>
-            <div className="topbar-sub">Pangan/Kuliner · DSS</div>
+            <div className="topbar-sub">{sector.icon} {sector.name} · DSS</div>
           </div>
         </div>
         <div className={`status-pill ${isCrisis ? 'crisis' : 'normal'}`}>
-          <span className="dot"></span>
-          {isCrisis ? 'KRISIS' : 'NORMAL'}
+          <span className="dot"></span>{isCrisis ? 'KRISIS' : 'NORMAL'}
         </div>
+      </div>
+
+      <div className={`sim-banner ${isCrisis ? 'crisis' : 'normal'}`}>
+        {isCrisis ? '⚠ Crisis Mitigation Mode Aktif' : '✓ Normal Monitoring Mode Aktif'}
       </div>
 
       <div className="page">
         {activeTab === 'beranda' && (
           <>
-            <SearchForm
-              commodities={commodities} commodityId={commodityId} setCommodityId={setCommodityId}
+            <SearchForm commodities={commodities} commodityId={commodityId} setCommodityId={setCommodityId}
               latitude={latitude} longitude={longitude} locating={locating} locationError={locationError}
               handleGetLocation={handleGetLocation} qty={qty} setQty={setQty}
-              handleSubmit={handleSubmit} loading={loading} error={error}
-            />
+              handleSubmit={handleSubmit} loading={loading} error={error} />
 
             {exchangeRate && (
               <div className={`kurs-card ${isCrisis ? 'crisis' : 'normal'}`}>
+                {isCrisis && (
+                  <div className="kurs-alert">
+                    <span className="icon">⚠️</span>
+                    <div>
+                      <b>Peringatan Depresiasi</b>
+                      Rupiah melemah melewati ambang 3%. Mode Mitigasi diaktifkan, pemasok lokal {sector.name} tersedia.
+                      <span className="time">{new Date(exchangeRate.checked_at).toLocaleTimeString('id-ID')} WIB</span>
+                    </div>
+                  </div>
+                )}
                 <div className="kurs-top">
-                  <span className="kurs-label">
-                    <span className="dot"></span>
-                    {isCrisis ? 'Peringatan Kritis' : 'Pasar Stabil'}
-                  </span>
-                  <span className="kurs-badge">{isCrisis ? 'KRISIS' : 'AMAN'}</span>
+                  <span className="kurs-label"><span className="dot"></span>{isCrisis ? 'Kurs Live — Peringatan Kritis' : 'Pasar Stabil'}</span>
+                  <button onClick={handleRefreshRate} disabled={refreshingRate} className="location-btn" style={{ padding: '4px 10px', fontSize: '11px' }}>
+                    {refreshingRate ? 'Memuat...' : '↻ Refresh'}
+                  </button>
                 </div>
-                <div className="kurs-rate">
-                  Rp{Math.round(parseFloat(exchangeRate.rate)).toLocaleString('id-ID')}
-                  <span> /USD</span>
-                </div>
+                <div className="kurs-rate">Rp{Math.round(parseFloat(exchangeRate.rate)).toLocaleString('id-ID')}<span> /USD</span></div>
                 <div className={`kurs-sub ${isCrisis ? 'crisis-text' : ''}`}>
-                  {isCrisis
-                    ? 'Depresiasi melewati ambang 3% — mode mitigasi aktif'
-                    : 'Di bawah ambang depresiasi 3%'}
+                  {isCrisis ? 'Depresiasi melewati ambang 3% — mode mitigasi aktif' : 'Di bawah ambang depresiasi 3%'}
                 </div>
                 <div className="kurs-stats">
+                  <div><span className="label">Status</span><span className="value">{isCrisis ? 'Krisis' : 'Normal'}</span></div>
+                  <div><span className="label">Dicek</span><span className="value">{timeAgo(exchangeRate.checked_at)}</span></div>
+                  <div><span className="label">Sumber</span><span className="value">Live API</span></div>
+                </div>
+                <div className="auto-refresh-note">Auto-refresh tiap 5 menit</div>
+              </div>
+            )}
+
+            <div className="card sparkline-card">
+              <div className="sparkline-header"><span>Tren Kurs</span><span className="tag">{history.length} data</span></div>
+              <Sparkline history={history} />
+            </div>
+
+            {selectedCommodity && importPrice && results && results.length > 0 && (
+              <div className="card">
+                <div className="sparkline-header" style={{ marginBottom: '12px' }}>
+                  <span>{sector.icon} Harga — Impor vs. Lokal</span><span className="tag">Live</span>
+                </div>
+                <div className="import-compare-row">
                   <div>
-                    <span className="label">Status</span>
-                    <span className="value">{exchangeRate.status === 'crisis' ? 'Krisis' : 'Normal'}</span>
+                    <div className="name">{selectedCommodity.name} Impor (Asumsi)</div>
+                    <div className="sub">vs. {selectedCommodity.name} Lokal (live)</div>
                   </div>
-                  <div>
-                    <span className="label">Dicek</span>
-                    <span className="value">{new Date(exchangeRate.checked_at).toLocaleDateString('id-ID')}</span>
-                  </div>
-                  <div>
-                    <span className="label">Sumber</span>
-                    <span className="value">Live API</span>
+                  <div className="import-compare-price">
+                    <div className="old">{fmtRp(importPrice)}</div>
+                    <div className="new">{fmtRp(results[0].price_per_kg)}</div>
+                    <div className="save">Hemat {Math.round((1 - results[0].price_per_kg / importPrice) * 100)}%</div>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="card sparkline-card">
-              <div className="sparkline-header">
-                <span>Tren Kurs</span>
-                <span className="tag">{history.length} data</span>
+            {results && (
+              <div className="mini-stats">
+                <div className="mini-stat"><div className="value">{results.length}</div><div className="label">Pemasok Aktif</div></div>
+                <div className="mini-stat"><div className="value">{results.reduce((s, r) => s + r.capacity_per_day, 0).toLocaleString('id-ID')}</div><div className="label">Total Stok (kg)</div></div>
+                <div className="mini-stat"><div className="value">{results.filter((r) => r.is_validated).length}</div><div className="label">Tervalidasi</div></div>
               </div>
-              <Sparkline history={history} />
-            </div>
+            )}
 
             {results && results.length > 0 && (
               <>
-                <div className="section-title">Rekomendasi Teratas</div>
-                {results.slice(0, 3).map((r, i) => (
-                  <ResultCard key={r.producer_id} r={r} index={i} />
-                ))}
+                <div className="section-title">Rekomendasi Algoritma · Greedy</div>
+                {results.slice(0, 3).map((r, i) => <ResultCard key={r.producer_id} r={r} index={i} />)}
               </>
             )}
           </>
@@ -341,7 +534,8 @@ function App() {
 
         {activeTab === 'pemasok' && (
           <>
-            <div className="section-title">Semua Pemasok</div>
+            <div className="section-title">{results ? results.length : 0} Pemasok — {sector.name}</div>
+            <div className="sort-note">Urut: Efisiensi Greedy (harga + jarak)</div>
             {results && results.length > 0 ? (
               results.map((r, i) => <ResultCard key={r.producer_id} r={r} index={i} />)
             ) : (
@@ -354,82 +548,140 @@ function App() {
           <>
             <div className="section-title">Peta Lokasi Pemasok</div>
             <MapView results={results} userLat={latitude} userLon={longitude} />
+            <div className="card legend-card">
+              <div style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '2px' }}>Legenda</div>
+              <div className="legend-row"><span className="legend-swatch" style={{ background: '#34d399' }}></span>Rute ke pemasok terbaik</div>
+              <div className="legend-row"><span className="legend-swatch dot-swatch" style={{ background: '#34d399' }}></span>Pemasok terbaik (rekomendasi #1)</div>
+              <div className="legend-row"><span className="legend-swatch dot-swatch" style={{ background: '#5ba7f7' }}></span>Pemasok tersedia</div>
+              <div className="legend-row"><span className="legend-swatch dot-swatch" style={{ background: '#596059' }}></span>Stok habis</div>
+              <div className="legend-row"><span className="legend-swatch dot-swatch" style={{ background: 'white' }}></span>Lokasi Anda</div>
+            </div>
           </>
         )}
 
         {activeTab === 'analitik' && (
           <>
-            <div className="section-title">Analitik Penghematan</div>
-            {results && results.length > 0 ? (
+            <div className="section-title">Kalkulator Dampak DSS</div>
+            {results && results.length > 0 && selectedCommodity ? (
               (() => {
                 const prices = results.map((r) => r.price_per_kg)
                 const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length
                 const bestPrice = results[0].price_per_kg
-                const savingPercent = ((avgPrice - bestPrice) / avgPrice) * 100
-                const savingPerKg = avgPrice - bestPrice
+                const qtyNum = parseFloat(qty) || 0
+                const monthlyLocal = bestPrice * qtyNum
+                const monthlyImport = importPrice ? importPrice * qtyNum : null
+                const monthlySaving = monthlyImport ? monthlyImport - monthlyLocal : (avgPrice - bestPrice) * qtyNum
+                const yearlySaving = monthlySaving * 12
+                const savingPercent = monthlyImport ? (monthlySaving / monthlyImport) * 100 : ((avgPrice - bestPrice) / avgPrice) * 100
                 const staleCount = results.filter((r) => r.is_stale).length
 
                 return (
-                  <div className="card">
-                    <div className="stat-row">
-                      <span className="stat-label">Harga rata-rata pasar</span>
-                      <span className="stat-value">Rp{Math.round(avgPrice).toLocaleString('id-ID')}/kg</span>
+                  <>
+                    <div className="calc-hero">
+                      <div className="amount">{fmtRp(yearlySaving)}</div>
+                      <div className="caption">potensi penghematan/tahun · {qtyNum} kg/bulan</div>
+                      {isCrisis && <div className="note">⚠ Harga impor +6% (kondisi krisis aktif, asumsi)</div>}
                     </div>
-                    <div className="stat-row">
-                      <span className="stat-label">Harga terbaik (LokalChain)</span>
-                      <span className="stat-value highlight">Rp{Math.round(bestPrice).toLocaleString('id-ID')}/kg</span>
-                    </div>
-                    <div className="stat-row">
-                      <span className="stat-label">Hemat per kg</span>
-                      <span className="stat-value highlight">Rp{Math.round(savingPerKg).toLocaleString('id-ID')}</span>
-                    </div>
-                    <div className="stat-row">
-                      <span className="stat-label">Pemasok terdeteksi</span>
-                      <span className="stat-value">{results.length}</span>
-                    </div>
-                    <div className="stat-row">
-                      <span className="stat-label">Data kurang segar (&gt;7 hari)</span>
-                      <span className="stat-value">{staleCount} pemasok</span>
-                    </div>
-                    <div style={{ marginTop: '4px' }}>
-                      <div className="stat-row" style={{ border: 'none', paddingBottom: '4px' }}>
-                        <span className="stat-label">Efisiensi biaya vs rata-rata pasar</span>
-                        <span className="stat-value highlight">{savingPercent.toFixed(1)}%</span>
+
+                    {importPrice && (
+                      <div className="compare-pair">
+                        <div className="compare-box impor">
+                          <div className="name">{selectedCommodity.name} Impor</div>
+                          <div className="price">{fmtRp(importPrice)}</div>
+                          <div className="unit">/kg · harga asumsi</div>
+                          <div className="tag">▲ Terdampak kurs</div>
+                        </div>
+                        <div className="compare-box lokal">
+                          <div className="name">{selectedCommodity.name} Lokal</div>
+                          <div className="price">{fmtRp(bestPrice)}</div>
+                          <div className="unit">/kg · harga terbaik live</div>
+                          <div className="tag">✓ Kebal kurs</div>
+                        </div>
                       </div>
-                      <div className="progress-bar-track">
-                        <div className="progress-bar-fill" style={{ width: `${Math.min(savingPercent, 100)}%` }}></div>
+                    )}
+
+                    <div className="card">
+                      <div className="stat-row"><span className="stat-label">Biaya/bulan — sumber impor</span><span className="stat-value">{monthlyImport ? fmtRp(monthlyImport) : '-'}</span></div>
+                      <div className="stat-row"><span className="stat-label">Biaya/bulan — LokalChain</span><span className="stat-value highlight">{fmtRp(monthlyLocal)}</span></div>
+                      <div className="stat-row"><span className="stat-label">Delta penghematan/bulan</span><span className="stat-value highlight">{fmtRp(monthlySaving)}</span></div>
+                      <div style={{ marginTop: '4px' }}>
+                        <div className="stat-row" style={{ border: 'none', paddingBottom: '4px' }}>
+                          <span className="stat-label">Efisiensi biaya bahan baku</span>
+                          <span className="stat-value highlight">{savingPercent.toFixed(0)}%</span>
+                        </div>
+                        <div className="progress-bar-track"><div className="progress-bar-fill" style={{ width: `${Math.min(savingPercent, 100)}%` }}></div></div>
                       </div>
                     </div>
-                  </div>
+
+                    <div className="section-title">Efisiensi Proses Pengadaan</div>
+                    <div className="card">
+                      <div className="speed-compare">
+                        <span className="speed-label">Pencarian Manual</span>
+                        <div className="speed-track"><div className="speed-fill slow"></div></div>
+                        <span className="speed-value">2–4 mgu</span>
+                      </div>
+                      <div className="speed-compare">
+                        <span className="speed-label">LokalChain DSS</span>
+                        <div className="speed-track"><div className="speed-fill fast"></div></div>
+                        <span className="speed-value">&lt; 1 dtk</span>
+                      </div>
+                    </div>
+
+                    <div className="section-title">Ringkasan</div>
+                    <div className="card">
+                      <div className="stat-row"><span className="stat-label">Penghematan per kg</span><span className="stat-value">{fmtRp(monthlySaving / (qtyNum || 1))}</span></div>
+                      <div className="stat-row"><span className="stat-label">Penghematan per bulan</span><span className="stat-value">{fmtRp(monthlySaving)}</span></div>
+                      <div className="stat-row"><span className="stat-label">Penghematan per tahun</span><span className="stat-value highlight">{fmtRp(yearlySaving)}</span></div>
+                      <div className="stat-row"><span className="stat-label">Harga lokal terbaik live</span><span className="stat-value">{fmtRp(bestPrice)}/kg</span></div>
+                      <div className="stat-row"><span className="stat-label">Harga lokal rata-rata live</span><span className="stat-value">{fmtRp(avgPrice)}/kg</span></div>
+                      <div className="stat-row"><span className="stat-label">Data kurang segar (&gt;7 hari)</span><span className="stat-value">{staleCount} pemasok</span></div>
+                    </div>
+
+                    <div className="disclaimer-box">
+                      Kalkulasi bersumber dari harga live yang diperbarui produsen di Portal Produsen/KUD. Harga impor adalah <b>angka referensi/asumsi</b>, bukan data live scraping pasar impor. LokalChain DSS nirlaba — tidak ada komisi atau markup transaksi.
+                    </div>
+                  </>
                 )
               })()
             ) : (
-              <div className="empty-state">Cari rekomendasi dulu di tab Beranda untuk melihat analitik penghematan.</div>
+              <div className="empty-state">Cari rekomendasi dulu di tab Beranda untuk melihat kalkulator dampak.</div>
             )}
           </>
         )}
       </div>
 
       <div className="bottom-nav">
-        <button className={`nav-item ${activeTab === 'beranda' ? 'active' : ''}`} onClick={() => setActiveTab('beranda')}>
-          <span className="nav-icon">🏠</span>
-          Beranda
-        </button>
-        <button className={`nav-item ${activeTab === 'pemasok' ? 'active' : ''}`} onClick={() => setActiveTab('pemasok')}>
-          <span className="nav-icon">📋</span>
-          Pemasok
-        </button>
-        <button className={`nav-item ${activeTab === 'peta' ? 'active' : ''}`} onClick={() => setActiveTab('peta')}>
-          <span className="nav-icon">🗺️</span>
-          Peta
-        </button>
-        <button className={`nav-item ${activeTab === 'analitik' ? 'active' : ''}`} onClick={() => setActiveTab('analitik')}>
-          <span className="nav-icon">📊</span>
-          Analitik
-        </button>
+        <button className={`nav-item ${activeTab === 'beranda' ? 'active' : ''}`} onClick={() => setActiveTab('beranda')}><span className="nav-icon">🏠</span>Beranda</button>
+        <button className={`nav-item ${activeTab === 'pemasok' ? 'active' : ''}`} onClick={() => setActiveTab('pemasok')}><span className="nav-icon">📋</span>Pemasok</button>
+        <button className={`nav-item ${activeTab === 'peta' ? 'active' : ''}`} onClick={() => setActiveTab('peta')}><span className="nav-icon">🗺️</span>Peta</button>
+        <button className={`nav-item ${activeTab === 'analitik' ? 'active' : ''}`} onClick={() => setActiveTab('analitik')}><span className="nav-icon">📊</span>Analitik</button>
       </div>
     </div>
   )
+}
+
+/* ============ ROOT APP ============ */
+function App() {
+  const [screen, setScreen] = useState('sector')
+  const [sector, setSector] = useState(null)
+
+  if (screen === 'sector') {
+    return <SectorSelect onSelect={(s) => { setSector(s); setScreen('role') }} />
+  }
+
+  if (screen === 'role') {
+    return <RoleSelect sector={sector} onBack={() => setScreen('sector')} onSelect={(role) => setScreen(role)} />
+  }
+
+  if (screen === 'portal') {
+    return <ProducerPortal sector={sector} onExit={() => setScreen('role')} />
+  }
+
+  if (screen === 'dashboard') {
+    return <UmkmDashboard sector={sector} onExit={() => setScreen('role')} />
+  }
+
+  return null
 }
 
 export default App

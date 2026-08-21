@@ -13,6 +13,11 @@ class Commodity extends Model
     protected $fillable = [
         'name',
         'unit',
+        'import_price_reference',
+    ];
+
+    protected $casts = [
+        'import_price_reference' => 'decimal:2',
     ];
 
     public function producerCommodities(): HasMany

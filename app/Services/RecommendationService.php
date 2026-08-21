@@ -17,7 +17,7 @@ class RecommendationService
         $this->distanceService = $distanceService;
     }
 
-    public function recommend(int $commodityId, float $umkmLat, float $umkmLon, float $qty, int $topN = 5): array
+    public function recommend(int $commodityId, float $umkmLat, float $umkmLon, float $qty, int $topN = 20): array
     {
         $candidates = ProducerCommodity::with('producer')
             ->where('commodity_id', $commodityId)
@@ -50,15 +50,20 @@ class RecommendationService
             $results[] = [
                 'producer_id' => $producer->id,
                 'producer_name' => $producer->name,
+                'producer_type' => $producer->producer_type,
+                'is_validated' => $producer->is_validated,
+                'product_label' => $item->product_label,
                 'address' => $producer->address,
                 'latitude' => (float) $producer->latitude,
                 'longitude' => (float) $producer->longitude,
                 'price_per_kg' => (float) $item->price_per_kg,
                 'capacity_per_day' => (float) $item->capacity_per_day,
+                'in_stock' => $item->capacity_per_day > 0,
                 'distance_km' => round($distanceKm, 2),
                 'days_since_update' => $daysSinceUpdate !== null ? floor($daysSinceUpdate) : null,
                 'is_stale' => $isStale,
                 'total_cost' => round($totalCost, 2),
+                'est_minutes' => round($distanceKm * 2),
             ];
         }
 
