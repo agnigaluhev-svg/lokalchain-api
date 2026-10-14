@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Producer;
 use App\Models\ProducerCommodity;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class ProducerController extends Controller
 {
@@ -24,16 +25,9 @@ class ProducerController extends Controller
         ];
     }
 
-    private function requireRole(Request $request, string $role): void
-    {
-        abort_unless($request->user()->role === $role, 403, 'Akses ditolak untuk peran Anda.');
-    }
-
-    // Produsen: lihat produk milik sendiri
+    // PRODUSEN: hanya baris milik sendiri (row-level)
     public function mine(Request $request)
     {
-        $this->requireRole($request, 'produsen');
-
         $items = ProducerCommodity::with('producer')
             ->whereHas('producer', fn ($q) => $q->where('user_id', $request->user()->id))
             ->get()
@@ -45,11 +39,9 @@ class ProducerController extends Controller
         ]);
     }
 
-    // Produsen: buat profil usaha + produk pertama
+    // PRODUSEN: buat profil usaha + produk pertama, status awal belum tervalidasi
     public function storeProfile(Request $request)
     {
-        $this->requireRole($request, 'produsen');
-
         $user = $request->user();
 
         if (Producer::where('user_id', $user->id)->exists()) {
@@ -96,16 +88,10 @@ class ProducerController extends Controller
         ], 201);
     }
 
-    // Produsen: ubah harga dan stok milik sendiri
+    // PRODUSEN: ubah harga dan stok, dicek lewat Policy (harus milik sendiri)
     public function update(Request $request, ProducerCommodity $producerCommodity)
     {
-        $this->requireRole($request, 'produsen');
-
-        abort_unless(
-            (int) $producerCommodity->producer->user_id === (int) $request->user()->id,
-            403,
-            'Data ini bukan milik Anda.'
-        );
+        Gate::authorize('update', $producerCommodity);
 
         $validated = $request->validate([
             'price_per_kg' => 'required|numeric|min:0',
@@ -121,11 +107,9 @@ class ProducerController extends Controller
         ]);
     }
 
-    // KUD: lihat semua produsen
-    public function index(Request $request)
+    // KUD dan ADMIN: lihat semua produsen (rute dibatasi middleware peran)
+    public function index()
     {
-        $this->requireRole($request, 'kud');
-
         $items = ProducerCommodity::with('producer')
             ->get()
             ->map(fn ($item) => $this->formatItem($item));
@@ -136,10 +120,10 @@ class ProducerController extends Controller
         ]);
     }
 
-    // KUD: setujui atau cabut validasi produsen
+    // KUD: setujui atau cabut validasi, dicek lewat Policy
     public function setValidation(Request $request, Producer $producer)
     {
-        $this->requireRole($request, 'kud');
+        Gate::authorize('setValidation', $producer);
 
         $validated = $request->validate([
             'is_validated' => 'required|boolean',

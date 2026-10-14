@@ -17,10 +17,17 @@ class RecommendationService
         $this->distanceService = $distanceService;
     }
 
-    public function recommend(int $commodityId, float $umkmLat, float $umkmLon, float $qty, int $topN = 20): array
-    {
+    public function recommend(
+        int $commodityId,
+        float $umkmLat,
+        float $umkmLon,
+        float $qty,
+        int $topN = 20,
+        bool $onlyValidated = true
+    ): array {
         $candidates = ProducerCommodity::with('producer')
             ->where('commodity_id', $commodityId)
+            ->when($onlyValidated, fn ($q) => $q->whereHas('producer', fn ($p) => $p->where('is_validated', true)))
             ->get();
 
         $results = [];

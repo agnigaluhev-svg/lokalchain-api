@@ -1,0 +1,127 @@
+/* ---------- Form profil produsen ---------- */
+.profile-intro {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.profile-intro b {
+  color: var(--text);
+}
+
+.coord-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.coord-btn-row {
+  grid-column: 1 / -1;
+}
+
+.coord-btn-row .location-btn {
+  width: 100%;
+  padding: 10px;
+}
+
+.pending-note {
+  background: var(--amber-dim);
+  border: 1px solid rgba(242, 181, 69, 0.25);
+  color: var(--amber);
+  padding: 11px 13px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.success-box {
+  margin-top: 12px;
+  padding: 11px 14px;
+  background: var(--green-dim);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  border-radius: 9px;
+  color: var(--green);
+  font-size: 12.5px;
+}
+
+/* ---------- Panel KUD ---------- */
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filter-tab {
+  flex: 1;
+  padding: 9px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--card);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.filter-tab.active {
+  background: var(--green-dim);
+  border-color: rgba(52, 211, 153, 0.4);
+  color: var(--green);
+}
+
+.kud-product-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.kud-product-line .val {
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.kud-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btn-approve,
+.btn-revoke {
+  flex: 1;
+  padding: 10px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  border: 1px solid;
+}
+
+.btn-approve {
+  background: var(--green);
+  color: #04140d;
+  border-color: var(--green);
+}
+
+.btn-revoke {
+  background: var(--red-dim);
+  color: #ff9b9e;
+  border-color: rgba(242, 85, 90, 0.35);
+}
+
+.btn-approve:disabled,
+.btn-revoke:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

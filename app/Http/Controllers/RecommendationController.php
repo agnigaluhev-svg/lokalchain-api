@@ -25,11 +25,11 @@ class RecommendationController extends Controller
         ]);
 
         $results = $this->recommendationService->recommend(
-            commodityId: $validated['commodity_id'],
-            umkmLat: $validated['latitude'],
-            umkmLon: $validated['longitude'],
-            qty: $validated['qty'],
-            topN: $validated['top_n'] ?? 5,
+            commodityId: (int) $validated['commodity_id'],
+            umkmLat: (float) $validated['latitude'],
+            umkmLon: (float) $validated['longitude'],
+            qty: (float) $validated['qty'],
+            topN: (int) ($validated['top_n'] ?? 20),
         );
 
         return response()->json([

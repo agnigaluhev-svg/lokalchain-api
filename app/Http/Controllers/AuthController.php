@@ -11,11 +11,13 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        // Pendaftaran publik hanya untuk produsen dan umkm.
+        // Akun admin dibuat lewat seeder, akun KUD dibuat oleh admin.
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
-            'password' => 'required|string|min:6|confirmed',
-            'role' => 'required|in:produsen,kud,umkm',
+            'password' => 'required|string|min:8|confirmed',
+            'role' => 'required|in:produsen,umkm',
             'phone' => 'nullable|string|max:20',
         ]);
 
@@ -25,6 +27,7 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
             'phone' => $validated['phone'] ?? null,
+            'is_active' => true,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -50,6 +53,13 @@ class AuthController extends Controller
             throw ValidationException::withMessages([
                 'email' => ['Email atau password salah.'],
             ]);
+        }
+
+        if (!$user->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akun dinonaktifkan. Hubungi admin.',
+            ], 403);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;

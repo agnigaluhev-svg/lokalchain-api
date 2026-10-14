@@ -1,25 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
+import './panels.css'
 import AuthScreen from './AuthScreen.jsx'
+import ProducerPortal from './ProducerPortal.jsx'
+import KudPanel from './KudPanel.jsx'
+import { API_BASE, fmtRp, timeAgo } from './api.js'
 
-const API_BASE = 'http://127.0.0.1:8000/api'
 const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 menit
 const PANGAN = { id: 'pangan', icon: '🌾', name: 'Pangan / Kuliner' }
-
-function fmtRp(n) {
-  return 'Rp' + Math.round(n).toLocaleString('id-ID')
-}
-
-function timeAgo(dateStr) {
-  if (!dateStr) return '-'
-  const diffMs = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diffMs / 60000)
-  if (mins < 1) return 'Baru saja'
-  if (mins < 60) return `${mins} menit lalu`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours} jam lalu`
-  return `${Math.floor(hours / 24)} hari lalu`
-}
 
 /* ============ SECTOR SELECT ============ */
 function SectorSelect({ user, onSelect, onLogout }) {
@@ -66,105 +54,6 @@ function SectorSelect({ user, onSelect, onLogout }) {
       </button>
 
       <div className="intro-footer">🛡 Data divalidasi Dinas Koperasi & Pertanian</div>
-    </div>
-  )
-}
-
-/* ============ PORTAL PRODUSEN ============ */
-function ProducerPortal({ sector, onExit }) {
-  const [items, setItems] = useState([])
-  const [editingId, setEditingId] = useState(null)
-  const [editPrice, setEditPrice] = useState('')
-  const [editStock, setEditStock] = useState('')
-  const [loading, setLoading] = useState(true)
-
-  const loadProducers = () => {
-    fetch(`${API_BASE}/producers`)
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success) setItems(json.data)
-        setLoading(false)
-      })
-  }
-
-  useEffect(() => { loadProducers() }, [])
-
-  const startEdit = (item) => {
-    setEditingId(item.producer_commodity_id)
-    setEditPrice(item.price_per_kg)
-    setEditStock(item.capacity_per_day)
-  }
-
-  const saveEdit = (id) => {
-    fetch(`${API_BASE}/producer-commodities/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ price_per_kg: editPrice, capacity_per_day: editStock }),
-    })
-      .then((res) => res.json())
-      .then(() => {
-        setEditingId(null)
-        loadProducers()
-      })
-  }
-
-  return (
-    <div className="app">
-      <div className="topbar">
-        <div className="topbar-brand">
-          <button className="topbar-exit" onClick={onExit}>⤴</button>
-          <div className="topbar-titles">
-            <div className="topbar-title">Portal Produsen / KUD</div>
-            <div className="topbar-sub">{sector.icon} {sector.name} — Sisi Hulu</div>
-          </div>
-        </div>
-        <div className="status-pill online"><span className="dot"></span>ONLINE</div>
-      </div>
-
-      <div className="page">
-        <div className="validated-banner">
-          🛡
-          <span><b>Divalidasi oleh</b> Dinas Koperasi & Pertanian Kota Malang · Data live ke dashboard UMKM</span>
-        </div>
-
-        {loading && <div className="empty-state">Memuat data pemasok...</div>}
-
-        {items.map((item) => (
-          <div key={item.producer_commodity_id} className="producer-row">
-            <div className="producer-row-top">
-              <div className="producer-row-name">{item.name}</div>
-              <span className={`badge ${item.is_validated ? 'validated' : 'unvalidated'}`}>
-                {item.is_validated ? '✓ Tervalidasi' : '⚠ Belum Validasi'}
-              </span>
-            </div>
-            <div className="producer-row-meta">{item.producer_type} · {item.product_label}</div>
-
-            {editingId === item.producer_commodity_id ? (
-              <div className="edit-form">
-                <input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} placeholder="Harga/kg" />
-                <input type="number" value={editStock} onChange={(e) => setEditStock(e.target.value)} placeholder="Stok kg" />
-                <button onClick={() => saveEdit(item.producer_commodity_id)}>Simpan</button>
-              </div>
-            ) : (
-              <div className="producer-row-stats">
-                <div className="stat-block">
-                  <span className="label">Harga/kg</span>
-                  <span className="value">{fmtRp(item.price_per_kg)}</span>
-                </div>
-                <div className="stat-block">
-                  <span className="label">Stok Tersedia</span>
-                  <span className="value">{item.capacity_per_day.toLocaleString('id-ID')} kg</span>
-                </div>
-                <button className="edit-btn" onClick={() => startEdit(item)}>Edit</button>
-              </div>
-            )}
-          </div>
-        ))}
-
-        <div className="sync-note">
-          Data yang Anda perbarui di sini akan langsung tersinkronisasi ke Dashboard UMKM sektor {sector.name} sebagai rekomendasi pemasok real-time.
-        </div>
-      </div>
     </div>
   )
 }
@@ -610,29 +499,6 @@ function UmkmDashboard({ sector, onExit }) {
   )
 }
 
-/* ============ KUD PLACEHOLDER ============ */
-function KudPlaceholder({ user, onLogout }) {
-  return (
-    <div className="app">
-      <div className="topbar">
-        <div className="topbar-brand">
-          <button className="topbar-exit" onClick={onLogout}>⤴</button>
-          <div className="topbar-titles">
-            <div className="topbar-title">Panel KUD / Koperasi</div>
-            <div className="topbar-sub">Masuk sebagai {user.name}</div>
-          </div>
-        </div>
-        <div className="status-pill online"><span className="dot"></span>ONLINE</div>
-      </div>
-      <div className="page">
-        <div className="empty-state">
-          Halaman validasi produsen dan stok sedang dibangun.
-        </div>
-      </div>
-    </div>
-  )
-}
-
 /* ============ ROOT APP ============ */
 function App() {
   const [user, setUser] = useState(() => {
@@ -683,11 +549,11 @@ function App() {
   }
 
   if (user.role === 'kud') {
-    return <KudPlaceholder user={user} onLogout={handleLogout} />
+    return <KudPanel user={user} onLogout={handleLogout} />
   }
 
   if (user.role === 'produsen') {
-    return <ProducerPortal sector={PANGAN} onExit={handleLogout} />
+    return <ProducerPortal user={user} sector={PANGAN} onExit={handleLogout} />
   }
 
   if (!sector) {
