@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
+import AuthScreen from './AuthScreen.jsx'
 
 const API_BASE = 'http://127.0.0.1:8000/api'
 const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 menit
+const PANGAN = { id: 'pangan', icon: '🌾', name: 'Pangan / Kuliner' }
 
 function fmtRp(n) {
   return 'Rp' + Math.round(n).toLocaleString('id-ID')
@@ -20,7 +22,7 @@ function timeAgo(dateStr) {
 }
 
 /* ============ SECTOR SELECT ============ */
-function SectorSelect({ onSelect }) {
+function SectorSelect({ user, onSelect, onLogout }) {
   const sectors = [
     { id: 'pangan', icon: '🌾', name: 'Pangan / Kuliner', tags: ['Tahu/Tempe', 'Bakeri', 'Konveksi'], active: true },
     { id: 'tekstil', icon: '🧵', name: 'Tekstil / Konveksi', tags: ['Garmen', 'Tenun', 'Bordir'], active: false },
@@ -32,7 +34,7 @@ function SectorSelect({ onSelect }) {
       <div className="intro-eyebrow">⚡ v1.0 · DSS Platform</div>
       <div className="intro-logo">📦</div>
       <div className="intro-title">LokalChain</div>
-      <div className="intro-sub">DSS Platform · UMKM Supply Intelligence</div>
+      <div className="intro-sub">Halo, {user.name} · DSS Platform UMKM Supply Intelligence</div>
 
       <div className="section-label">Pilih Sektor UMKM</div>
 
@@ -59,61 +61,9 @@ function SectorSelect({ onSelect }) {
         ))}
       </div>
 
-      <div className="intro-footer">🛡 Data divalidasi Dinas Koperasi & Pertanian</div>
-    </div>
-  )
-}
-
-/* ============ ROLE SELECT ============ */
-function RoleSelect({ sector, onSelect, onBack }) {
-  return (
-    <div className="intro-screen">
-      <div className="intro-eyebrow">⚡ v1.0 · DSS Platform</div>
-      <div className="intro-logo">📦</div>
-      <div className="intro-title">LokalChain</div>
-      <div className="intro-sub">DSS Platform · UMKM Supply Intelligence</div>
-
-      <button className="back-link" onClick={onBack}>← Kembali pilih sektor</button>
-
-      <div className={`sector-card ${sector.id} selected`} style={{ marginBottom: '24px' }}>
-        <div className="sector-icon">{sector.icon}</div>
-        <div className="sector-body">
-          <div className="sector-name">{sector.name}</div>
-        </div>
-        <span className="selected-tag">Terpilih ✓</span>
-      </div>
-
-      <div className="section-label">Masuk Sebagai</div>
-
-      <div className="role-list">
-        <button className="role-card" onClick={() => onSelect('portal')}>
-          <div className="role-icon hulu">🚜</div>
-          <div style={{ flex: 1 }}>
-            <div className="role-title">Portal Produsen / KUD</div>
-            <div className="role-desc">Sisi Hulu · Update stok & harga komoditas</div>
-            <div className="sector-tags">
-              <span className="sector-tag">Petani</span>
-              <span className="sector-tag">KUD/Koperasi</span>
-              <span className="sector-tag">Gapoktan</span>
-            </div>
-          </div>
-          <div className="sector-chevron">›</div>
-        </button>
-
-        <button className="role-card" onClick={() => onSelect('dashboard')}>
-          <div className="role-icon hilir">🛍️</div>
-          <div style={{ flex: 1 }}>
-            <div className="role-title">Dashboard UMKM</div>
-            <div className="role-desc">Sisi Hilir · DSS rekomendasi pemasok lokal</div>
-            <div className="sector-tags">
-              <span className="sector-tag">Tahu/Tempe</span>
-              <span className="sector-tag">Bakeri</span>
-              <span className="sector-tag">Konveksi</span>
-            </div>
-          </div>
-          <div className="sector-chevron">›</div>
-        </button>
-      </div>
+      <button className="location-btn" style={{ marginTop: '20px' }} onClick={onLogout}>
+        Keluar
+      </button>
 
       <div className="intro-footer">🛡 Data divalidasi Dinas Koperasi & Pertanian</div>
     </div>
@@ -660,28 +610,91 @@ function UmkmDashboard({ sector, onExit }) {
   )
 }
 
+/* ============ KUD PLACEHOLDER ============ */
+function KudPlaceholder({ user, onLogout }) {
+  return (
+    <div className="app">
+      <div className="topbar">
+        <div className="topbar-brand">
+          <button className="topbar-exit" onClick={onLogout}>⤴</button>
+          <div className="topbar-titles">
+            <div className="topbar-title">Panel KUD / Koperasi</div>
+            <div className="topbar-sub">Masuk sebagai {user.name}</div>
+          </div>
+        </div>
+        <div className="status-pill online"><span className="dot"></span>ONLINE</div>
+      </div>
+      <div className="page">
+        <div className="empty-state">
+          Halaman validasi produsen dan stok sedang dibangun.
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ============ ROOT APP ============ */
 function App() {
-  const [screen, setScreen] = useState('sector')
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('lokalchain_user'))
+    } catch {
+      return null
+    }
+  })
   const [sector, setSector] = useState(null)
 
-  if (screen === 'sector') {
-    return <SectorSelect onSelect={(s) => { setSector(s); setScreen('role') }} />
+  // Verifikasi token yang tersimpan; kalau tidak valid lagi, otomatis logout
+  useEffect(() => {
+    const token = localStorage.getItem('lokalchain_token')
+    if (!token) return
+
+    fetch(`${API_BASE}/me`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Token tidak valid')
+        return res.json()
+      })
+      .then((json) => setUser(json.user))
+      .catch(() => {
+        localStorage.removeItem('lokalchain_token')
+        localStorage.removeItem('lokalchain_user')
+        setUser(null)
+      })
+  }, [])
+
+  const handleLogout = () => {
+    const token = localStorage.getItem('lokalchain_token')
+    if (token) {
+      fetch(`${API_BASE}/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      }).catch(() => {})
+    }
+    localStorage.removeItem('lokalchain_token')
+    localStorage.removeItem('lokalchain_user')
+    setUser(null)
+    setSector(null)
   }
 
-  if (screen === 'role') {
-    return <RoleSelect sector={sector} onBack={() => setScreen('sector')} onSelect={(role) => setScreen(role)} />
+  if (!user) {
+    return <AuthScreen onAuth={(u) => setUser(u)} />
   }
 
-  if (screen === 'portal') {
-    return <ProducerPortal sector={sector} onExit={() => setScreen('role')} />
+  if (user.role === 'kud') {
+    return <KudPlaceholder user={user} onLogout={handleLogout} />
   }
 
-  if (screen === 'dashboard') {
-    return <UmkmDashboard sector={sector} onExit={() => setScreen('role')} />
+  if (user.role === 'produsen') {
+    return <ProducerPortal sector={PANGAN} onExit={handleLogout} />
   }
 
-  return null
+  if (!sector) {
+    return <SectorSelect user={user} onSelect={(s) => setSector(s)} onLogout={handleLogout} />
+  }
+
+  return <UmkmDashboard sector={sector} onExit={() => setSector(null)} />
 }
 
 export default App
