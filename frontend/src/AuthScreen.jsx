@@ -1,6 +1,5 @@
 import { useState } from 'react'
-
-const API_BASE = 'http://127.0.0.1:8000/api'
+import { API_BASE } from './api.js'
 
 export default function AuthScreen({ onAuth }) {
   const [mode, setMode] = useState('login')
@@ -87,7 +86,6 @@ export default function AuthScreen({ onAuth }) {
                 <select value={form.role} onChange={(e) => update('role', e.target.value)}>
                   <option value="umkm">UMKM (pembeli bahan baku)</option>
                   <option value="produsen">Produsen (petani / pemasok)</option>
-                  <option value="kud">KUD / Koperasi (validator)</option>
                 </select>
               </div>
 
@@ -104,8 +102,14 @@ export default function AuthScreen({ onAuth }) {
           </div>
 
           <div className="form-field">
-            <label>Password</label>
-            <input type="password" value={form.password} onChange={(e) => update('password', e.target.value)} required />
+            <label>Password{mode === 'register' ? ' (minimal 8 karakter)' : ''}</label>
+            <input
+              type="password"
+              minLength={mode === 'register' ? 8 : undefined}
+              value={form.password}
+              onChange={(e) => update('password', e.target.value)}
+              required
+            />
           </div>
 
           {mode === 'register' && (
@@ -126,6 +130,12 @@ export default function AuthScreen({ onAuth }) {
         </button>
 
         {error && <div className="error-box">{error}</div>}
+
+        {mode === 'register' && (
+          <div className="profile-intro" style={{ marginTop: '14px', marginBottom: 0 }}>
+            Akun KUD / Koperasi tidak bisa mendaftar sendiri. Akun dibuat oleh admin LokalChain.
+          </div>
+        )}
       </form>
     </div>
   )

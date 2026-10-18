@@ -4,7 +4,8 @@ import './panels.css'
 import AuthScreen from './AuthScreen.jsx'
 import ProducerPortal from './ProducerPortal.jsx'
 import KudPanel from './KudPanel.jsx'
-import { API_BASE, fmtRp, timeAgo } from './api.js'
+import AdminPanel from './AdminPanel.jsx'
+import { API_BASE, authFetch, fmtRp, timeAgo } from './api.js'
 
 const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 menit
 const PANGAN = { id: 'pangan', icon: '🌾', name: 'Pangan / Kuliner' }
@@ -200,7 +201,7 @@ function SearchForm({ commodities, commodityId, setCommodityId, latitude, longit
 }
 
 /* ============ UMKM DASHBOARD ============ */
-function UmkmDashboard({ sector, onExit }) {
+function UmkmDashboard({ sector, onExit, onLogout }) {
   const [activeTab, setActiveTab] = useState('beranda')
   const [commodities, setCommodities] = useState([])
   const [commodityId, setCommodityId] = useState('')
@@ -215,6 +216,7 @@ function UmkmDashboard({ sector, onExit }) {
   const [exchangeRate, setExchangeRate] = useState(null)
   const [history, setHistory] = useState([])
   const [refreshingRate, setRefreshingRate] = useState(false)
+  const [rateError, setRateError] = useState(null)
   const intervalRef = useRef(null)
 
   const loadExchangeRate = () => {
@@ -237,10 +239,20 @@ function UmkmDashboard({ sector, onExit }) {
 
   const handleRefreshRate = () => {
     setRefreshingRate(true)
-    fetch(`${API_BASE}/exchange-rate/check`).then((r) => r.json()).then(() => {
-      loadExchangeRate()
-      setRefreshingRate(false)
-    }).catch(() => setRefreshingRate(false))
+    setRateError(null)
+    authFetch('/exchange-rate/check')
+      .then(async (res) => {
+        if (res.status === 401) {
+          onLogout()
+          return
+        }
+        if (res.status === 429) throw new Error('Terlalu sering. Coba lagi sebentar lagi.')
+        if (!res.ok) throw new Error('Gagal memperbarui kurs.')
+        await res.json()
+        loadExchangeRate()
+      })
+      .catch((err) => setRateError(err.message))
+      .finally(() => setRefreshingRate(false))
   }
 
   const handleGetLocation = () => {
@@ -260,12 +272,25 @@ function UmkmDashboard({ sector, onExit }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!latitude || !longitude) { setError('Mohon deteksi lokasi terlebih dahulu.'); return }
-    setLoading(true); setError(null)
+    setLoading(true)
+    setError(null)
     const params = new URLSearchParams({ commodity_id: commodityId, latitude, longitude, qty, top_n: 20 })
-    fetch(`${API_BASE}/recommendations?${params}`).then((r) => r.json()).then((j) => {
-      if (j.success) setResults(j.data); else setError('Gagal mengambil rekomendasi.')
-      setLoading(false)
-    }).catch((err) => { setError('Gagal terhubung ke server: ' + err.message); setLoading(false) })
+
+    authFetch(`/recommendations?${params}`)
+      .then((res) => {
+        if (res.status === 401) {
+          onLogout()
+          return null
+        }
+        return res.json()
+      })
+      .then((j) => {
+        if (!j) return
+        if (j.success) setResults(j.data)
+        else setError(j.message || 'Gagal mengambil rekomendasi.')
+      })
+      .catch((err) => setError('Gagal terhubung ke server: ' + err.message))
+      .finally(() => setLoading(false))
   }
 
   const isCrisis = exchangeRate?.status === 'crisis'
@@ -326,6 +351,7 @@ function UmkmDashboard({ sector, onExit }) {
                   <div><span className="label">Dicek</span><span className="value">{timeAgo(exchangeRate.checked_at)}</span></div>
                   <div><span className="label">Sumber</span><span className="value">Live API</span></div>
                 </div>
+                {rateError && <div className="error-box">{rateError}</div>}
                 <div className="auto-refresh-note">Auto-refresh tiap 5 menit</div>
               </div>
             )}
@@ -360,6 +386,10 @@ function UmkmDashboard({ sector, onExit }) {
                 <div className="mini-stat"><div className="value">{results.reduce((s, r) => s + r.capacity_per_day, 0).toLocaleString('id-ID')}</div><div className="label">Total Stok (kg)</div></div>
                 <div className="mini-stat"><div className="value">{results.filter((r) => r.is_validated).length}</div><div className="label">Tervalidasi</div></div>
               </div>
+            )}
+
+            {results && results.length === 0 && (
+              <div className="empty-state">Belum ada pemasok tervalidasi untuk komoditas ini.</div>
             )}
 
             {results && results.length > 0 && (
@@ -477,7 +507,7 @@ function UmkmDashboard({ sector, onExit }) {
                     </div>
 
                     <div className="disclaimer-box">
-                      Kalkulasi bersumber dari harga live yang diperbarui produsen di Portal Produsen/KUD. Harga impor adalah <b>angka referensi/asumsi</b>, bukan data live scraping pasar impor. LokalChain DSS nirlaba — tidak ada komisi atau markup transaksi.
+                      Kalkulasi bersumber dari harga live yang diperbarui produsen di Portal Produsen. Harga impor adalah <b>angka referensi/asumsi</b>, bukan data live scraping pasar impor. LokalChain DSS nirlaba — tidak ada komisi atau markup transaksi.
                     </div>
                   </>
                 )
@@ -510,7 +540,7 @@ function App() {
   })
   const [sector, setSector] = useState(null)
 
-  // Verifikasi token yang tersimpan; kalau tidak valid lagi, otomatis logout
+  // Verifikasi token yang tersimpan; kalau tidak valid lagi (kedaluwarsa / akun dinonaktifkan), otomatis logout
   useEffect(() => {
     const token = localStorage.getItem('lokalchain_token')
     if (!token) return
@@ -522,7 +552,10 @@ function App() {
         if (!res.ok) throw new Error('Token tidak valid')
         return res.json()
       })
-      .then((json) => setUser(json.user))
+      .then((json) => {
+        setUser(json.user)
+        localStorage.setItem('lokalchain_user', JSON.stringify(json.user))
+      })
       .catch(() => {
         localStorage.removeItem('lokalchain_token')
         localStorage.removeItem('lokalchain_user')
@@ -548,6 +581,10 @@ function App() {
     return <AuthScreen onAuth={(u) => setUser(u)} />
   }
 
+  if (user.role === 'admin') {
+    return <AdminPanel user={user} onLogout={handleLogout} />
+  }
+
   if (user.role === 'kud') {
     return <KudPanel user={user} onLogout={handleLogout} />
   }
@@ -560,7 +597,7 @@ function App() {
     return <SectorSelect user={user} onSelect={(s) => setSector(s)} onLogout={handleLogout} />
   }
 
-  return <UmkmDashboard sector={sector} onExit={() => setSector(null)} />
+  return <UmkmDashboard sector={sector} onExit={() => setSector(null)} onLogout={handleLogout} />
 }
 
 export default App
