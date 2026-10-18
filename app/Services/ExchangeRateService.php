@@ -10,7 +10,12 @@ class ExchangeRateService
 {
     protected string $baseUrl;
     protected string $apiKey;
+
+    // Ambang pelemahan rupiah yang memicu mode krisis (persen)
     protected float $thresholdPercent = 3.0;
+
+    // Pembanding: kurs sekitar 7 hari lalu
+    protected int $baselineDays = 7;
 
     public function __construct()
     {
@@ -20,7 +25,7 @@ class ExchangeRateService
 
     public function fetchLatestRate(string $base = 'USD', string $target = 'IDR'): ?float
     {
-        $response = Http::get("{$this->baseUrl}/{$this->apiKey}/latest/{$base}");
+        $response = Http::timeout(15)->get("{$this->baseUrl}/{$this->apiKey}/latest/{$base}");
 
         if (!$response->successful()) {
             Log::error('Gagal mengambil data kurs dari ExchangeRate-API', [
@@ -42,16 +47,22 @@ class ExchangeRateService
             throw new \Exception('Tidak bisa mengambil data kurs saat ini.');
         }
 
-        $previousLog = ExchangeRateLog::orderByDesc('checked_at')
-            ->where('checked_at', '<=', now()->subDays(7))
-            ->first();
+        // Pembanding utama: data terakhir yang umurnya sudah >= 7 hari.
+        // Kalau belum ada, pakai data tertua yang tersedia.
+        $baseline = ExchangeRateLog::where('checked_at', '<=', now()->subDays($this->baselineDays))
+            ->orderByDesc('checked_at')
+            ->first()
+            ?? ExchangeRateLog::orderBy('checked_at')->first();
 
+        $changePercent = null;
         $status = 'normal';
 
-        if ($previousLog) {
-            $changePercent = (($currentRate - $previousLog->rate) / $previousLog->rate) * 100;
+        if ($baseline && (float) $baseline->rate > 0) {
+            // Kurs = rupiah per 1 USD. Angka naik berarti rupiah MELEMAH.
+            $changePercent = (($currentRate - (float) $baseline->rate) / (float) $baseline->rate) * 100;
 
-            if (abs($changePercent) >= $this->thresholdPercent) {
+            // Hanya pelemahan yang dianggap krisis, penguatan rupiah tidak.
+            if ($changePercent >= $this->thresholdPercent) {
                 $status = 'crisis';
             }
         }
@@ -59,6 +70,7 @@ class ExchangeRateService
         return ExchangeRateLog::create([
             'rate' => $currentRate,
             'status' => $status,
+            'change_percent' => $changePercent,
             'checked_at' => now(),
         ]);
     }
