@@ -33,7 +33,7 @@ function ProfileForm({ user, onCreated, onLogout }) {
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }))
 
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/commodities')
+    fetch(`${API_BASE}/commodities`)
       .then((r) => r.json())
       .then((j) => {
         if (j.success) {
