@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { authFetch, fmtRp } from './api.js'
+import { API_BASE, authFetch, fmtRp } from './api.js'
 import './panels.css'
 
 const TYPES = ['Petani', 'KUD', 'UD', 'CV', 'Gapoktan']
