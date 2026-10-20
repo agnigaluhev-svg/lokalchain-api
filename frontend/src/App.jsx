@@ -13,9 +13,9 @@ const PANGAN = { id: 'pangan', icon: '🌾', name: 'Pangan / Kuliner' }
 /* ============ SECTOR SELECT ============ */
 function SectorSelect({ user, onSelect, onLogout }) {
   const sectors = [
-    { id: 'pangan', icon: '🌾', name: 'Pangan / Kuliner', tags: ['Tahu/Tempe', 'Bakeri', 'Konveksi'], active: true },
-    { id: 'tekstil', icon: '🧵', name: 'Tekstil / Konveksi', tags: ['Garmen', 'Tenun', 'Bordir'], active: false },
-    { id: 'kriya', icon: '🪵', name: 'Kriya / Kerajinan', tags: ['Furnitur', 'Anyaman', 'Ukiran'], active: false },
+    { id: 'pangan', icon: '🌾', name: 'Pangan / Kuliner', tags: ['Tahu/Tempe', 'Bakeri', 'Konveksi'], active: true, visible: true },
+    { id: 'tekstil', icon: '🧵', name: 'Tekstil / Konveksi', tags: ['Garmen', 'Tenun', 'Bordir'], active: false, visible: false },
+    { id: 'kriya', icon: '🪵', name: 'Kriya / Kerajinan', tags: ['Furnitur', 'Anyaman', 'Ukiran'], active: false, visible: false },
   ]
 
   return (
@@ -28,7 +28,7 @@ function SectorSelect({ user, onSelect, onLogout }) {
       <div className="section-label">Pilih Sektor UMKM</div>
 
       <div className="sector-list">
-        {sectors.map((s) => (
+        {sectors.filter((s) => s.visible).map((s) => (
           <button
             key={s.id}
             className={`sector-card ${s.id}`}
