@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { IconActivity, IconLayers } from './Icons.jsx'
 import { API_BASE } from './api.js'
 
 export default function AuthScreen({ onAuth }) {
@@ -48,8 +49,8 @@ export default function AuthScreen({ onAuth }) {
 
   return (
     <div className="intro-screen">
-      <div className="intro-eyebrow">⚡ v1.0 · DSS Platform</div>
-      <div className="intro-logo">📦</div>
+      <div className="intro-eyebrow"><IconActivity size={13} /> v4.0 · DSS Platform</div>
+      <div className="intro-logo"><IconLayers size={30} /></div>
       <div className="intro-title">LokalChain</div>
       <div className="intro-sub">
         {mode === 'login' ? 'Masuk ke akun Anda' : 'Buat akun baru'}

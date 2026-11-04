@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { IconLogout, IconShield, IconPencil } from './Icons.jsx'
 import { API_BASE, authFetch, fmtRp } from './api.js'
 import './panels.css'
 
@@ -215,9 +216,9 @@ export default function ProducerPortal({ user, sector, onExit }) {
     <div className="app">
       <div className="topbar">
         <div className="topbar-brand">
-          <button className="topbar-exit" onClick={onExit}>⤴</button>
+          <button className="topbar-exit" onClick={onExit} aria-label="Keluar"><IconLogout size={17} /></button>
           <div className="topbar-titles">
-            <div className="topbar-title">Portal Produsen</div>
+            <div className="topbar-title">Portal Produsen / KUD</div>
             <div className="topbar-sub">{sector.icon} {sector.name} — {user.name}</div>
           </div>
         </div>
@@ -239,7 +240,7 @@ export default function ProducerPortal({ user, sector, onExit }) {
               </div>
             ) : (
               <div className="validated-banner">
-                🛡 <span><b>Usaha Anda sudah tervalidasi.</b> Perubahan harga dan stok langsung tampil di dashboard UMKM.</span>
+                <IconShield size={16} /> <span><b>Usaha Anda sudah tervalidasi.</b> Perubahan harga dan stok langsung tampil di dashboard UMKM.</span>
               </div>
             )}
 
@@ -248,9 +249,14 @@ export default function ProducerPortal({ user, sector, onExit }) {
             {items.map((item) => (
               <div key={item.producer_commodity_id} className="producer-row">
                 <div className="producer-row-top">
-                  <div className="producer-row-name">{item.name}</div>
-                  <span className={`badge ${item.is_validated ? 'validated' : 'unvalidated'}`}>
-                    {item.is_validated ? '✓ Tervalidasi' : '⚠ Belum Validasi'}
+                  <div className="producer-row-title">
+                    <div className="producer-row-name">{item.name}</div>
+                    <span className={`badge ${item.is_validated ? 'validated' : 'unvalidated'}`}>
+                      {item.is_validated ? '✓ Tervalidasi' : '⚠ Belum Validasi'}
+                    </span>
+                  </div>
+                  <span className={`stock-pill ${item.capacity_per_day > 0 ? 'ok' : 'empty'}`}>
+                    {item.capacity_per_day > 0 ? 'Tersedia' : 'Kosong'}
                   </span>
                 </div>
                 <div className="producer-row-meta">
@@ -275,7 +281,7 @@ export default function ProducerPortal({ user, sector, onExit }) {
                       <span className="label">Stok Tersedia</span>
                       <span className="value">{item.capacity_per_day.toLocaleString('id-ID')} kg</span>
                     </div>
-                    <button className="edit-btn" onClick={() => startEdit(item)}>Edit</button>
+                    <button className="edit-btn" onClick={() => startEdit(item)}><IconPencil size={13} /> Edit</button>
                   </div>
                 )}
               </div>

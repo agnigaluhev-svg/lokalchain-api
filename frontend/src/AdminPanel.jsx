@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { IconLogout } from './Icons.jsx'
 import { authFetch, timeAgo } from './api.js'
 import './panels.css'
 import './admin.css'
@@ -84,7 +85,7 @@ export default function AdminPanel({ user, onLogout }) {
     <div className="app">
       <div className="topbar">
         <div className="topbar-brand">
-          <button className="topbar-exit" onClick={onLogout}>⤴</button>
+          <button className="topbar-exit" onClick={onLogout} aria-label="Keluar"><IconLogout size={17} /></button>
           <div className="topbar-titles">
             <div className="topbar-title">Panel Admin</div>
             <div className="topbar-sub">Masuk sebagai {user.name}</div>
