@@ -25,7 +25,7 @@
   <p>
     <a href="https://github.com/agnigaluhev-svg/lokalchain-api"><img alt="Repository" src="https://img.shields.io/badge/Repository-GitHub-181717?logo=github&amp;logoColor=white"></a>
     <a href="https://www.linkedin.com/in/agnigaluhev"><img alt="LinkedIn" src="https://img.shields.io/badge/LinkedIn-Agni_Galuh-0A66C2?logo=linkedin&amp;logoColor=white"></a>
-    <img alt="Demo live" src="https://img.shields.io/badge/Demo_Live-URL_menyusul-2EA44F?logo=vercel&amp;logoColor=white">
+    <a href="https://lokalchain-api.vercel.app/"><img alt="Demo live" src="https://img.shields.io/badge/Demo_Live-Buka_Aplikasi-2EA44F?logo=vercel&amp;logoColor=white"></a>
   </p>
 </div>
 
@@ -261,11 +261,11 @@ Alur data lengkap, ERD, dan matriks akses ada di [`docs/ARSITEKTUR.md`](docs/ARS
 
 ### Demo live
 
-Isi URL Vercel setelah deploy:
+Aplikasi sudah dapat dicoba di:
 
-```text
-[URL Vercel — isi setelah deploy]
-```
+**🌐 [https://lokalchain-api.vercel.app/](https://lokalchain-api.vercel.app/)**
+
+> Demo memakai data produsen **simulasi** dan harga impor **referensi/asumsi**. Jika halaman gagal memuat data, tunggu beberapa saat lalu muat ulang — layanan backend dapat sedang cold start.
 
 ---
 
