@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="LokalChain">
+  <defs>
+    <linearGradient id="bg" x1="16" y1="8" x2="112" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#122019"/>
+      <stop offset="1" stop-color="#070d0a"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="28" y1="20" x2="100" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8af0ad"/>
+      <stop offset="1" stop-color="#1f9d55"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="48" y1="46" x2="84" y2="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a7f7bd"/>
+      <stop offset=".45" stop-color="#54dd7f"/>
+      <stop offset="1" stop-color="#149447"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="30" fill="url(#bg)"/>
+  <rect x="1" y="1" width="126" height="126" rx="29" fill="none" stroke="#1b3427"/>
+
+  <path d="M64 20 100 41v46L64 108 28 87V41Z"
+        fill="none" stroke="url(#ring)" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="64" cy="20" r="4.2" fill="#7deca2"/>
+  <circle cx="100" cy="87" r="4.2" fill="#7deca2"/>
+  <circle cx="28" cy="41" r="4.2" fill="#7deca2"/>
+
+  <path d="M64 91c-17-8-24-26-18-43 18 1 32 13 36 31-4 7-10 11-18 12Z" fill="url(#leaf)"/>
+  <path d="M51 82c9-14 18-23 30-30" fill="none" stroke="#0a1710" stroke-width="3.2"
+        stroke-linecap="round" opacity=".55"/>
+
+  <circle cx="18" cy="101" r="2.4" fill="#54dd7f" opacity=".55"/>
+  <circle cx="110" cy="27" r="2.4" fill="#54dd7f" opacity=".55"/>
+</svg>
