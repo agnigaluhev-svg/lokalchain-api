@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { IconLogout } from './Icons.jsx'
+import Shell from './Shell.jsx'
 import { authFetch, fmtRp, timeAgo } from './api.js'
 import './panels.css'
 
@@ -74,81 +74,82 @@ export default function KudPanel({ user, onLogout }) {
   }
 
   return (
-    <div className="app">
-      <div className="topbar">
-        <div className="topbar-brand">
-          <button className="topbar-exit" onClick={onLogout} aria-label="Keluar"><IconLogout size={17} /></button>
-          <div className="topbar-titles">
-            <div className="topbar-title">Panel KUD / Koperasi</div>
-            <div className="topbar-sub">Masuk sebagai {user.name}</div>
-          </div>
-        </div>
-        <div className="status-pill online"><span className="dot"></span>ONLINE</div>
+    <Shell
+      user={user}
+      title="Panel KUD"
+      subtitle={`Validasi produsen · ${user.name}`}
+      onExit={onLogout}
+      exitLabel="Keluar"
+      onLogout={onLogout}
+      pageClass="page-panel"
+      note="Validasi menentukan produsen mana yang boleh masuk ranking rekomendasi UMKM."
+    >
+      <div className="page-head">
+        <h1 className="page-title">Validasi Produsen</h1>
+        <p className="page-sub">Tinjau profil usaha, lalu setujui atau cabut validasi produk mitra.</p>
       </div>
 
-      <div className="page">
-        <div className="mini-stats">
-          <div className="mini-stat"><div className="value">{grouped.length}</div><div className="label">Total Produsen</div></div>
-          <div className="mini-stat"><div className="value">{pendingCount}</div><div className="label">Menunggu</div></div>
-          <div className="mini-stat"><div className="value">{validatedCount}</div><div className="label">Tervalidasi</div></div>
+      <div className="mini-stats">
+        <div className="mini-stat"><div className="value">{grouped.length}</div><div className="label">Total Produsen</div></div>
+        <div className="mini-stat"><div className="value">{pendingCount}</div><div className="label">Menunggu</div></div>
+        <div className="mini-stat"><div className="value">{validatedCount}</div><div className="label">Tervalidasi</div></div>
+      </div>
+
+      <div className="filter-tabs">
+        <button className={`filter-tab ${filter === 'pending' ? 'active' : ''}`} onClick={() => setFilter('pending')}>
+          Menunggu ({pendingCount})
+        </button>
+        <button className={`filter-tab ${filter === 'validated' ? 'active' : ''}`} onClick={() => setFilter('validated')}>
+          Tervalidasi ({validatedCount})
+        </button>
+        <button className={`filter-tab ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>
+          Semua ({grouped.length})
+        </button>
+      </div>
+
+      {error && <div className="error-box" style={{ marginBottom: '12px' }}>{error}</div>}
+      {loading && <div className="empty-state">Memuat data produsen...</div>}
+
+      {!loading && visible.length === 0 && (
+        <div className="empty-state">
+          {filter === 'pending' ? 'Tidak ada produsen yang menunggu validasi.' : 'Belum ada data.'}
         </div>
+      )}
 
-        <div className="filter-tabs">
-          <button className={`filter-tab ${filter === 'pending' ? 'active' : ''}`} onClick={() => setFilter('pending')}>
-            Menunggu ({pendingCount})
-          </button>
-          <button className={`filter-tab ${filter === 'validated' ? 'active' : ''}`} onClick={() => setFilter('validated')}>
-            Tervalidasi ({validatedCount})
-          </button>
-          <button className={`filter-tab ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>
-            Semua ({grouped.length})
-          </button>
-        </div>
-
-        {error && <div className="error-box" style={{ marginBottom: '12px' }}>{error}</div>}
-        {loading && <div className="empty-state">Memuat data produsen...</div>}
-
-        {!loading && visible.length === 0 && (
-          <div className="empty-state">
-            {filter === 'pending' ? 'Tidak ada produsen yang menunggu validasi.' : 'Belum ada data.'}
+      {visible.map((p) => (
+        <div key={p.producer_id} className="producer-row">
+          <div className="producer-row-top">
+            <div className="producer-row-name">{p.name}</div>
+            <span className={`badge ${p.is_validated ? 'validated' : 'unvalidated'}`}>
+              {p.is_validated ? '✓ Tervalidasi' : '⚠ Menunggu'}
+            </span>
           </div>
-        )}
+          <div className="producer-row-meta">
+            {p.producer_type} · {p.address || 'Alamat belum diisi'} · diperbarui {timeAgo(p.last_updated_at)}
+          </div>
 
-        {visible.map((p) => (
-          <div key={p.producer_id} className="producer-row">
-            <div className="producer-row-top">
-              <div className="producer-row-name">{p.name}</div>
-              <span className={`badge ${p.is_validated ? 'validated' : 'unvalidated'}`}>
-                {p.is_validated ? '✓ Tervalidasi' : '⚠ Menunggu'}
+          {p.products.map((prod) => (
+            <div key={prod.producer_commodity_id} className="kud-product-line">
+              <span>{prod.product_label || 'Tanpa nama produk'}</span>
+              <span className="val">
+                {fmtRp(prod.price_per_kg)}/kg · {prod.capacity_per_day.toLocaleString('id-ID')} kg
               </span>
             </div>
-            <div className="producer-row-meta">
-              {p.producer_type} · {p.address || 'Alamat belum diisi'} · diperbarui {timeAgo(p.last_updated_at)}
-            </div>
+          ))}
 
-            {p.products.map((prod) => (
-              <div key={prod.producer_commodity_id} className="kud-product-line">
-                <span>{prod.product_label || 'Tanpa nama produk'}</span>
-                <span className="val">
-                  {fmtRp(prod.price_per_kg)}/kg · {prod.capacity_per_day.toLocaleString('id-ID')} kg
-                </span>
-              </div>
-            ))}
-
-            <div className="kud-actions">
-              {p.is_validated ? (
-                <button className="btn-revoke" disabled={busyId === p.producer_id} onClick={() => setValidation(p.producer_id, false)}>
-                  {busyId === p.producer_id ? '...' : 'Cabut Validasi'}
-                </button>
-              ) : (
-                <button className="btn-approve" disabled={busyId === p.producer_id} onClick={() => setValidation(p.producer_id, true)}>
-                  {busyId === p.producer_id ? '...' : '✓ Setujui'}
-                </button>
-              )}
-            </div>
+          <div className="kud-actions">
+            {p.is_validated ? (
+              <button className="btn-revoke" disabled={busyId === p.producer_id} onClick={() => setValidation(p.producer_id, false)}>
+                {busyId === p.producer_id ? '...' : 'Cabut Validasi'}
+              </button>
+            ) : (
+              <button className="btn-approve" disabled={busyId === p.producer_id} onClick={() => setValidation(p.producer_id, true)}>
+                {busyId === p.producer_id ? '...' : '✓ Setujui'}
+              </button>
+            )}
           </div>
-        ))}
-      </div>
-    </div>
+        </div>
+      ))}
+    </Shell>
   )
 }

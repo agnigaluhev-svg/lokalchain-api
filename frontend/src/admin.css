@@ -1,53 +1,96 @@
+/* =====================================================================
+   Panel admin — badge peran dan aksi akun
+   ===================================================================== */
+
 .role-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 9px;
+  font-size: 9.5px;
+  font-weight: 800;
+  font-family: var(--mono);
+  padding: 4px 9px;
   border-radius: 999px;
   white-space: nowrap;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
+  border: 1px solid transparent;
 }
 
-.role-badge.admin { color: var(--purple); background: rgba(167, 139, 250, 0.14); }
-.role-badge.kud { color: var(--green); background: var(--green-dim); }
-.role-badge.produsen { color: var(--amber); background: var(--amber-dim); }
-.role-badge.umkm { color: var(--blue); background: var(--blue-dim); }
+.role-badge.admin {
+  color: var(--purple);
+  background: var(--purple-dim);
+  border-color: rgba(196, 181, 253, 0.24);
+}
+
+.role-badge.kud {
+  color: var(--green);
+  background: var(--green-dim);
+  border-color: rgba(74, 222, 128, 0.22);
+}
+
+.role-badge.produsen {
+  color: var(--amber);
+  background: var(--amber-dim);
+  border-color: rgba(251, 191, 36, 0.22);
+}
+
+.role-badge.umkm {
+  color: var(--blue);
+  background: var(--blue-dim);
+  border-color: rgba(96, 165, 250, 0.22);
+}
 
 .user-row-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .active-state {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 
-.active-state.on { color: var(--green); }
-.active-state.off { color: #ff9b9e; }
+.active-state.on {
+  color: var(--green);
+}
+
+.active-state.off {
+  color: var(--red-text);
+}
 
 .toggle-btn {
   padding: 8px 14px;
-  border-radius: 8px;
+  border-radius: 9px;
   border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.045);
   color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
   cursor: pointer;
   font-family: inherit;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.toggle-btn:hover:not(:disabled) {
+  border-color: var(--green-line);
+  color: var(--green);
 }
 
 .toggle-btn.danger {
   background: var(--red-dim);
-  color: #ff9b9e;
-  border-color: rgba(242, 85, 90, 0.35);
+  color: var(--red-text);
+  border-color: rgba(248, 113, 113, 0.32);
+}
+
+.toggle-btn.danger:hover:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #ffc2c2;
 }
 
 .toggle-btn:disabled {
@@ -56,6 +99,6 @@
 }
 
 .create-kud-toggle {
-  width: 100%;
   margin-bottom: 14px;
+  max-width: 380px;
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { IconLogout, IconShield, IconPencil } from './Icons.jsx'
+import { IconShield, IconPencil } from './Icons.jsx'
+import Shell from './Shell.jsx'
 import { API_BASE, authFetch, fmtRp } from './api.js'
 import './panels.css'
 
@@ -84,7 +85,7 @@ function ProfileForm({ user, onCreated, onLogout }) {
   }
 
   return (
-    <form className="card" onSubmit={handleSubmit}>
+    <form className="card panel-form" onSubmit={handleSubmit}>
       <div className="profile-intro">
         <b>Daftarkan usaha Anda.</b> Setelah dikirim, data akan diperiksa oleh KUD / Koperasi.
         Produk Anda tampil sebagai <b>Belum Validasi</b> sampai disetujui.
@@ -213,86 +214,87 @@ export default function ProducerPortal({ user, sector, onExit }) {
   const hasUnvalidated = items.some((i) => !i.is_validated)
 
   return (
-    <div className="app">
-      <div className="topbar">
-        <div className="topbar-brand">
-          <button className="topbar-exit" onClick={onExit} aria-label="Keluar"><IconLogout size={17} /></button>
-          <div className="topbar-titles">
-            <div className="topbar-title">Portal Produsen / KUD</div>
-            <div className="topbar-sub">{sector.icon} {sector.name} — {user.name}</div>
-          </div>
-        </div>
-        <div className="status-pill online"><span className="dot"></span>ONLINE</div>
+    <Shell
+      user={user}
+      title="Portal Produsen"
+      subtitle={`${sector.icon} ${sector.name} · ${user.name}`}
+      onExit={onExit}
+      exitLabel="Keluar"
+      onLogout={onExit}
+      pageClass="page-panel"
+      note="Perbarui harga dan stok agar rekomendasi UMKM tetap segar. Produk baru tampil setelah divalidasi KUD."
+    >
+      <div className="page-head">
+        <h1 className="page-title">Ringkasan Usaha</h1>
+        <p className="page-sub">Kelola harga, stok, dan status validasi produk Anda di satu tempat.</p>
       </div>
 
-      <div className="page">
-        {loading && <div className="empty-state">Memuat data usaha Anda...</div>}
+      {loading && <div className="empty-state">Memuat data usaha Anda...</div>}
 
-        {!loading && items.length === 0 && (
-          <ProfileForm user={user} onCreated={loadListings} onLogout={onExit} />
-        )}
+      {!loading && items.length === 0 && (
+        <ProfileForm user={user} onCreated={loadListings} onLogout={onExit} />
+      )}
 
-        {!loading && items.length > 0 && (
-          <>
-            {hasUnvalidated ? (
-              <div className="pending-note">
-                ⏳ Usaha Anda sedang menunggu validasi KUD. Anda tetap bisa memperbarui harga dan stok.
-              </div>
-            ) : (
-              <div className="validated-banner">
-                <IconShield size={16} /> <span><b>Usaha Anda sudah tervalidasi.</b> Perubahan harga dan stok langsung tampil di dashboard UMKM.</span>
-              </div>
-            )}
+      {!loading && items.length > 0 && (
+        <>
+          {hasUnvalidated ? (
+            <div className="pending-note">
+              ⏳ Usaha Anda sedang menunggu validasi KUD. Anda tetap bisa memperbarui harga dan stok.
+            </div>
+          ) : (
+            <div className="validated-banner">
+              <IconShield size={16} /> <span><b>Usaha Anda sudah tervalidasi.</b> Perubahan harga dan stok langsung tampil di dashboard UMKM.</span>
+            </div>
+          )}
 
-            {error && <div className="error-box" style={{ marginBottom: '12px' }}>{error}</div>}
+          {error && <div className="error-box" style={{ marginBottom: '12px' }}>{error}</div>}
 
-            {items.map((item) => (
-              <div key={item.producer_commodity_id} className="producer-row">
-                <div className="producer-row-top">
-                  <div className="producer-row-title">
-                    <div className="producer-row-name">{item.name}</div>
-                    <span className={`badge ${item.is_validated ? 'validated' : 'unvalidated'}`}>
-                      {item.is_validated ? '✓ Tervalidasi' : '⚠ Belum Validasi'}
-                    </span>
-                  </div>
-                  <span className={`stock-pill ${item.capacity_per_day > 0 ? 'ok' : 'empty'}`}>
-                    {item.capacity_per_day > 0 ? 'Tersedia' : 'Kosong'}
+          {items.map((item) => (
+            <div key={item.producer_commodity_id} className="producer-row">
+              <div className="producer-row-top">
+                <div className="producer-row-title">
+                  <div className="producer-row-name">{item.name}</div>
+                  <span className={`badge ${item.is_validated ? 'validated' : 'unvalidated'}`}>
+                    {item.is_validated ? '✓ Tervalidasi' : '⚠ Belum Validasi'}
                   </span>
                 </div>
-                <div className="producer-row-meta">
-                  {item.producer_type} · {item.product_label || 'Tanpa nama produk'}
-                </div>
-
-                {editingId === item.producer_commodity_id ? (
-                  <div className="edit-form">
-                    <input type="number" min="0" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} placeholder="Harga/kg" />
-                    <input type="number" min="0" value={editStock} onChange={(e) => setEditStock(e.target.value)} placeholder="Stok kg" />
-                    <button onClick={() => saveEdit(item.producer_commodity_id)} disabled={saving}>
-                      {saving ? '...' : 'Simpan'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="producer-row-stats">
-                    <div className="stat-block">
-                      <span className="label">Harga/kg</span>
-                      <span className="value">{fmtRp(item.price_per_kg)}</span>
-                    </div>
-                    <div className="stat-block">
-                      <span className="label">Stok Tersedia</span>
-                      <span className="value">{item.capacity_per_day.toLocaleString('id-ID')} kg</span>
-                    </div>
-                    <button className="edit-btn" onClick={() => startEdit(item)}><IconPencil size={13} /> Edit</button>
-                  </div>
-                )}
+                <span className={`stock-pill ${item.capacity_per_day > 0 ? 'ok' : 'empty'}`}>
+                  {item.capacity_per_day > 0 ? 'Tersedia' : 'Kosong'}
+                </span>
               </div>
-            ))}
+              <div className="producer-row-meta">
+                {item.producer_type} · {item.product_label || 'Tanpa nama produk'}
+              </div>
 
-            <div className="sync-note">
-              Data yang Anda perbarui di sini langsung tersinkronisasi ke Dashboard UMKM sebagai rekomendasi pemasok.
+              {editingId === item.producer_commodity_id ? (
+                <div className="edit-form">
+                  <input type="number" min="0" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} placeholder="Harga/kg" />
+                  <input type="number" min="0" value={editStock} onChange={(e) => setEditStock(e.target.value)} placeholder="Stok kg" />
+                  <button onClick={() => saveEdit(item.producer_commodity_id)} disabled={saving}>
+                    {saving ? '...' : 'Simpan'}
+                  </button>
+                </div>
+              ) : (
+                <div className="producer-row-stats">
+                  <div className="stat-block">
+                    <span className="label">Harga/kg</span>
+                    <span className="value">{fmtRp(item.price_per_kg)}</span>
+                  </div>
+                  <div className="stat-block">
+                    <span className="label">Stok Tersedia</span>
+                    <span className="value">{item.capacity_per_day.toLocaleString('id-ID')} kg</span>
+                  </div>
+                  <button className="edit-btn" onClick={() => startEdit(item)}><IconPencil size={13} /> Edit</button>
+                </div>
+              )}
             </div>
-          </>
-        )}
-      </div>
-    </div>
+          ))}
+
+          <div className="sync-note">
+            Data yang Anda perbarui di sini langsung tersinkronisasi ke Dashboard UMKM sebagai rekomendasi pemasok.
+          </div>
+        </>
+      )}
+    </Shell>
   )
 }
